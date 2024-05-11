@@ -15,7 +15,7 @@ x_0 = 0.5
 # N = 2  # number of electrons
 # bin_size = 100
 # step_size = 2*math.pi/bin_size
-step_size = 0.01
+step_size = 0.05
 # np array of positions from -10 to 10 in steps of 0.1
 position = np.arange(-10, 10, step_size)
 
@@ -42,22 +42,31 @@ def normalize_wavefunction(psi):
     print("A = ", A)
     return psi/np.sqrt(A)
 
+
+def plot_orbitals(orbitals):
+    # Plot the first orbital
+    plt.plot(position, normalize_wavefunction(orbitals[0]), label='Orbital 1')
+
+    # Plot the second orbital
+    plt.plot(position , normalize_wavefunction(orbitals[1]),  label='Orbital 2')
+
+    # Add labels and title
+    plt.xlabel('Position')
+    plt.ylabel('Wavefunction')
+    plt.title('Orbitals')
+
+    # Add legend
+    plt.legend()
+
+    # Show the plot
+    plt.show()
+
 def one_body_harmonic_potential(x):
     return 0.5 * omega**(2) * x**2
 
 harmonic_potential_values = np.array([one_body_harmonic_potential(x) for x in position])
 
 V_HO_potential_matrix = np.diag(harmonic_potential_values)
-
-# Assuming V_HO_potential_matrix is your matrix
-# plt.imshow(V_HO_potential_matrix, cmap='hot', interpolation='nearest')
-# plt.colorbar(label='Value')
-# plt.title('V_HO_potential_matrix')
-# plt.show()
-
-
-# plt.plot(position, harmonic_potential_values, label='harmonic_potential')
-# plt.show()
 
 def discrete_second_derivative(func):
     second_derivative = []
@@ -85,17 +94,6 @@ def interaction_potential(x_1, x_2):
 
 V_interaction_matrix = np.array([[interaction_potential(i, j) for i in position] for j in position])
 
-# x_1 = np.copy(position)
-# x_2 = np.copy(position)
-
-# V_interaction = np.array([[interaction_potential(i, j) for i in x_1] for j in x_2])
-
-
-# plt.imshow(V, origin='upper')
-# plt.colorbar()  
-# plt.xlabel('x_1')
-# plt.ylabel('x_2')
-# plt.show()
 
 
 def H_O_potential_expectation(psi):
@@ -104,18 +102,15 @@ def H_O_potential_expectation(psi):
     Takes a wavefunction psi and returns the expectation value of the harmonic oscillator potential.
     """
     V_HO_potential_matrix = np.diag(harmonic_potential_values)
-    # return (np.conjugate(normalize_wavefunction(psi)) @  V_HO_potential_matrix @ normalize_wavefunction(psi)) * step_size
-    return np.dot(np.dot(np.conjugate(normalize_wavefunction(psi)), V_HO_potential), normalize_wavefunction(psi)) * step_size    
+    return (np.conjugate(normalize_wavefunction(psi)) @  V_HO_potential_matrix @ normalize_wavefunction(psi)) * step_size
+    # return np.dot(np.dot(np.conjugate(normalize_wavefunction(psi)), V_HO_potential_matrix), normalize_wavefunction(psi)) * step_size    
 
 def K_E_expectation(psi):
     #does not give the correct answer
-    # i think we need to put appropriate factor to convert the sum to integral 1/L ??
     return np.dot(np.conjugate(normalize_wavefunction(psi)), kinetic_energy(normalize_wavefunction(psi))) * step_size
-
 
 # Calculate the expectation value of the kinetic energy 
 # and petential energy for the grounds state of Harmonic Oscillator
-
 # x = np.copy(position)  # Define x from -pi to pi
 ## psi = np.sin(x)  # Define psi as sin(x)
 # harmonic_oscilator_gs = np.array([HO_ground_state(x) for x in x])
@@ -132,6 +127,28 @@ def K_E_expectation(psi):
 # print("Total Energy ", HO_expectation + KE_expectation, "expected value = 0.5 hbar * omega ", 0.5)
 
 
+# Create the kinetic energy operator matrix
+T = -1 / (2 * step_size**2) * (np.diag(-2 * np.ones(len(position))) + np.diag(np.ones(len(position)-1), k=-1) + np.diag(np.ones((len(position))-1), k=1))
+
+# potential energy operator matrix
+V = V_HO_potential_matrix
+
+H_harmmonic = T + V
+
+# Find the two smallest eigenvalues and their corresponding eigenvectors
+HO_eigenvalue, HO_eigenvectors =  np.linalg.eigh(H_harmmonic)
+# The two smallest eigenvalues  of the harmonic oscillator 
+HO_e_1, HO_e_2 = HO_eigenvalue[0: 2]
+
+# eigenvector corresponding to two lowest eigenvalues of harmonic oscillator 
+orbital_1_HO = np.array(HO_eigenvectors[:, 0])
+orbital_2_HO = np.array(HO_eigenvectors[:, 1]) 
+HO_eigenvectors = np.array([orbital_1_HO, orbital_2_HO])
+plot_orbitals(HO_eigenvectors)
+
+plt.plot(position, harmonic_potential_values)
+plt.show()
+
 def density_matrix(list_orbitals):
     # Initialize density_matrix as a zero array with the appropriate shape
     # density matrix gamma_{x, y} is defined as sum_{i} psi^{*}_{i}(y) * psi_{i}(x) 
@@ -142,16 +159,7 @@ def density_matrix(list_orbitals):
         density_matrix += np.array([[j*i for j in psi_complex_conjugate] for i in psi])
     return density_matrix
 
-# print(np.shape(density_matrix([psi_0_1, psi_0_2])))
 
-
-# Assuming density_matrix is a function that returns a matrix
-density_mat = density_matrix([psi_0_1, psi_0_2])
-
-# plt.imshow(density_mat.real, cmap='hot', interpolation='nearest')
-# plt.colorbar(label='Value')
-# plt.title('Density Matrix')
-# plt.show()
 
 def hatree_potential(list_orbitals):
     """
@@ -173,45 +181,29 @@ def exchange_correlation_potential(list_orbitals):
     V_xc =  V_interaction_matrix @ density_matrix(list_orbitals)
     return V_xc
 
+
 # print("Exchange potential = ", exchange_correlation_potential([psi_0_1, psi_0_2]))
 # print("shape of exchange potential = ", np.shape(exchange_correlation_potential([psi_0_1, psi_0_2])))
+
 
 
 
 # Get the exchange correlation potential
 exchange_potential_value = exchange_correlation_potential([psi_0_1, psi_0_2])
 
-# Create a new figure
-# plt.figure()
-
-# Plot the exchange correlation potential
-# plt.imshow(hatree_potential_value, cmap='hot', interpolation='nearest')
-# plt.colorbar(label='Value')
-#plt.settitle('Hatree Potential')
-# plt.show()
-
-# plt.imshow(exchange_potential_value, cmap='hot', interpolation='nearest')
-# plt.colorbar(label='Value')
-# plt.title('Exchange Potential')
-# plt.show()
-
-# plt.imshow(hatree_potential_value + exchange_potential_value, cmap='hot', interpolation='nearest')
-# plt.colorbar(label='Value')
-# plt.title('Total Hatree-fock Potential without the single particle potentials')
-# plt.show()
 
 
 
-# Create the kinetic energy operator matrix
-T = -1 / (2 * step_size**2) * (np.diag(-2 * np.ones(len(position))) + np.diag(np.ones(len(position)-1), k=-1) + np.diag(np.ones((len(position))-1), k=1))
 
-# Modify the first row for forward third-order derivative
-# T[0, 0] = -1 / (2 * step_size**2) * 2
+
+
+#Modify the first row for forward third-order derivative
+T[0, 0] = -1 / (2 * step_size**2) * 2
 # T[0, 1] = -1 / (2 * step_size**2) * (-5)
 # T[0, 2] = -1 / (2 * step_size**2) * 4
 # T[0, 3] = -1 / (2 * step_size**2) * (-1)
 
-# Modify the last row for backward second derivative
+# #Modify the last row for backward second derivative
 # T[-1, -1] = -1 / (2 * step_size**2) * (2)
 # T[-1, -2] = -1 / (2 * step_size**2) * -5
 # T[-1, -3] = -1 / (2 * step_size**2) * 4
@@ -222,62 +214,9 @@ T = -1 / (2 * step_size**2) * (np.diag(-2 * np.ones(len(position))) + np.diag(np
 
 # Create the potential energy operator matrix
 V = V_HO_potential_matrix  
-# print("V = \n  ", V)
-# print("shape of V = ", np.shape(V))
-
-
-# def Hatree_fock_procedue(orbitals):
-
-#     # calculate the density matrix
-#     density_mat = density_matrix(orbitals)
-#     # calculate the hatree potential
-#     V_hatree = hatree_potential(orbitals)
-#     # calculate the exchange potential
-#     V_xc = exchange_correlation_potential(orbitals)
-#     # return the sum of the hatree and exchange potentials
-
-#     #solving the scrhodinger equation to obtain two lowest lying orbitals
-#     H = T + V + V_hatree + V_xc
-
-#     # Find the two smallest eigenvalues and their corresponding eigenvectors
-#     eigenvalues, eigenvectors = eigsh(H, 2, which='SM')
-
-#     # The two smallest eigenvalues
-#     e_1, e_2 = eigenvalues
-
-#     # Save each eigenvector as a 1D numpy array
-#     orbital_1 = np.array(eigenvectors[:, 0])
-#     orbital_2 = np.array(eigenvectors[:, 1])
-
-#     # Put the eigenvectors into another 1D numpy array
-#     new_orbitals = np.array([orbital_1, orbital_2])
-
-#     # Calculate the total energy
-#     total_energy = e_1 + e_2
-
-#     # Print the eigenvalues and total energy
-#     print(f"e_1: {e_1}, e_2: {e_2}, total_energy: {total_energy}")
-
-def plot_orbitals(orbitals):
-    # Plot the first orbital
-    plt.plot(position, orbitals[0], label='Orbital 1')
-
-    # Plot the second orbital
-    plt.plot(position , orbitals[1],  label='Orbital 2')
-
-    # Add labels and title
-    plt.xlabel('Position')
-    plt.ylabel('Wavefunction')
-    plt.title('Orbitals')
-
-    # Add legend
-    plt.legend()
-
-    # Show the plot
-    plt.show()
-
-
-nmax = 5
+ 
+# number of iteration
+nmax = 10
 
 def Hatree_fock_procedue(orbitals):
     run = 0
@@ -292,18 +231,26 @@ def Hatree_fock_procedue(orbitals):
         # return the sum of the hatree and exchange potentials
 
         #solving the scrhodinger equation to obtain two lowest lying orbitals
-        # H = T + V + V_hatree - V_xc
+        H = T + V + V_hatree - V_xc
         # H = T + V 
-        H = T + V_hatree - V_xc
+        # H = T + V_hatree - V_xc
         # Find the two smallest eigenvalues and their corresponding eigenvectors
-        eigenvalues, eigenvectors = eigsh(H, 2, which='SM')
+        # eigenvalues, eigenvectors = eigsh(H, 2, which='SM', maxiter=10000) 
+        eigenvalues, eigenvectors = np.linalg.eigh(H)
 
         # The two smallest eigenvalues
-        e_1, e_2 = eigenvalues
+        e_1, e_2 = eigenvalues[0: 2]
 
         # Save each eigenvector as a 1D numpy array
         orbital_1 = np.array(eigenvectors[:, 0])
         orbital_2 = np.array(eigenvectors[:, 1])
+
+
+
+        
+        plt.plot(position, orbital_1, label='Orbital 1')
+        plt.plot(position, orbital_2, label='Orbital 2')
+        plt.show()
 
         # Put the eigenvectors into another 1D numpy array
         new_orbitals = np.array([orbital_1, orbital_2])
@@ -330,14 +277,19 @@ orbital_1 = np.array(initial_eigenvectors[:, 0])
 orbital_2 = np.array(initial_eigenvectors[:, 1])
 
 intitial_orbitals = np.array([orbital_1, orbital_2])
-plot_orbitals(intitial_orbitals)
-plt.show()
+
+# intitial_orbitals = np.array([psi_0_1, psi_0_2])
+
+# plot_orbitals(intitial_orbitals)
+
+# plot_orbitals(intitial_orbitals)
+# plt.show()
 # Run the Hatree-Fock procedure
-final_orbitals = Hatree_fock_procedue(intitial_orbitals)
+# final_orbitals = Hatree_fock_procedue(intitial_orbitals)
 
 # import matplotlib.pyplot as plt
 
 # Call the function with the obtained orbitals
-plot_orbitals(final_orbitals)
+# plot_orbitals(final_orbitals)
 
 
